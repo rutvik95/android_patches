@@ -1,0 +1,265 @@
+From 15158d8b9ed6e3d2b06661f860f836734a9f5fd8 Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Tue, 23 Dec 2014 22:15:37 +0700
+Subject: [PATCH 1/4] Telephony: fix 'up' navigation for SelectSubscription
+
+The 'up' command should be passed down to the activity in the tab
+
+Change-Id: I70d5e4d5cb2d44f62cca481337f108d122726e14
+---
+ src/com/android/phone/msim/MSimCallFeaturesSubSetting.java | 6 +-----
+ src/com/android/phone/msim/SelectSubscription.java         | 9 +++++++++
+ 2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java b/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java
+index 49d9eaa..bf6fbd9 100644
+--- a/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java
++++ b/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java
+@@ -1991,11 +1991,7 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
+     public boolean onOptionsItemSelected(MenuItem item) {
+         final int itemId = item.getItemId();
+         if (itemId == android.R.id.home) {  // See ActionBar#setDisplayHomeAsUpEnabled()
+-            Intent intent = new Intent();
+-            intent.setClassName(UP_ACTIVITY_PACKAGE, UP_ACTIVITY_CLASS);
+-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+-            startActivity(intent);
+-            finish();
++            CallFeaturesSetting.goUpToTopLevelSetting(this);
+             return true;
+         }
+         return super.onOptionsItemSelected(item);
+diff --git a/src/com/android/phone/msim/SelectSubscription.java b/src/com/android/phone/msim/SelectSubscription.java
+index 645d209..6e24be0 100644
+--- a/src/com/android/phone/msim/SelectSubscription.java
++++ b/src/com/android/phone/msim/SelectSubscription.java
+@@ -29,6 +29,7 @@
+ 
+ package com.android.phone.msim;
+ 
++import android.app.Activity;
+ import android.app.TabActivity;
+ import android.content.Intent;
+ import android.os.Bundle;
+@@ -36,6 +37,7 @@ import android.telephony.SubInfoRecord;
+ import android.telephony.SubscriptionManager;
+ import android.telephony.TelephonyManager;
+ import android.util.Log;
++import android.view.MenuItem;
+ import android.widget.TabHost;
+ import android.widget.TabHost.TabSpec;
+ 
+@@ -102,6 +104,13 @@ public class SelectSubscription extends  TabActivity {
+     }
+ 
+     @Override
++    public boolean onOptionsItemSelected(MenuItem item) {
++        String tabTag = getTabHost().getCurrentTabTag();
++        Activity activity = getLocalActivityManager().getActivity(tabTag);
++        return activity.onOptionsItemSelected(item);
++    }
++
++    @Override
+     protected void onResume() {
+         super.onResume();
+     }
+-- 
+1.9.3 (Apple Git-50)
+
+
+From 8df3e96ff54bd9cfb9ffba61661053d48ae7ae4d Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Sun, 23 Nov 2014 15:57:20 +0700
+Subject: [PATCH 2/4] Telephony: MSim: enable preferred mode button for all
+ phones
+
+HACK to allow changing network mode on multi-SIM
+
+Change-Id: I79cd6dfb1653c9c1ef14b8965c9af2bd0f5792cb
+---
+ res/values/strings.xml                             | 10 ++++++++
+ res/xml/msim_network_sub_setting.xml               |  4 ++--
+ .../phone/msim/MSimMobileNetworkSubSettings.java   | 27 +++++++---------------
+ 3 files changed, 20 insertions(+), 21 deletions(-)
+
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index dbd4d60..43c3aa9 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -384,6 +384,16 @@
+     <!-- Mobile network settings, summary for preferred network mode LTE / WCDMA[CHAR LIMIT=100] -->
+     <string name="preferred_network_mode_lte_wcdma_summary">Preferred network mode: LTE / WCDMA</string>
+ 
++    <string-array name="preferred_network_mode_choices_2" translatable="false">
++        <item>@string/preferred_network_mode_wcdma_only_choice</item>
++        <item>@string/preferred_network_mode_gsm_only_choice</item>
++        <item>@string/preferred_network_mode_gsm_wcdma_preferred_choice</item>
++    </string-array>
++    <string-array name="preferred_network_mode_values_2"  translatable="false">
++        <item>"2"</item>
++        <item>"1"</item>
++        <item>"0"</item>
++    </string-array>
+ 
+     <string-array name="preferred_network_mode_choices">
+         <item>LTE / WCDMA</item>
+diff --git a/res/xml/msim_network_sub_setting.xml b/res/xml/msim_network_sub_setting.xml
+index 7ddb838..72101de 100644
+--- a/res/xml/msim_network_sub_setting.xml
++++ b/res/xml/msim_network_sub_setting.xml
+@@ -40,8 +40,8 @@
+         android:key="preferred_network_mode_key"
+         android:title="@string/preferred_network_mode_title"
+         android:summary="@string/preferred_network_mode_summary"
+-        android:entries="@array/preferred_network_mode_choices_cm"
+-        android:entryValues="@array/preferred_network_mode_values"
++        android:entries="@array/preferred_network_mode_choices_2"
++        android:entryValues="@array/preferred_network_mode_values_2"
+         android:dialogTitle="@string/preferred_network_mode_dialogtitle" />
+ 
+ </PreferenceScreen>
+diff --git a/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java b/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java
+index 3a5a23c..a657981 100644
+--- a/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java
++++ b/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java
+@@ -212,32 +212,21 @@ public class MSimMobileNetworkSubSettings extends PreferenceActivity
+             mUPLMNPref.getIntent().putExtra(PhoneConstants.SUBSCRIPTION_KEY, mPhone.getPhoneId());
+         }
+ 
+-        boolean isLteOnCdma = mPhone.getLteOnCdmaMode() == PhoneConstants.LTE_ON_CDMA_TRUE;
+-        if (getResources().getBoolean(R.bool.world_phone) == true) {
+-            // set the listener for the mButtonPreferredNetworkMode list preference so we can issue
+-            // change Preferred Network Mode.
+-            mButtonPreferredNetworkMode.setOnPreferenceChangeListener(this);
++        // set the listener for the mButtonPreferredNetworkMode list preference so we can issue
++        // change Preferred Network Mode.
++        mButtonPreferredNetworkMode.setOnPreferenceChangeListener(this);
+ 
+-            //Get the networkMode from Settings.System and displays it
+-            int settingsNetworkMode = getPreferredNetworkMode();
+-            mButtonPreferredNetworkMode.setValue(Integer.toString(settingsNetworkMode));
++        //Get the networkMode from Settings.System and displays it
++        int settingsNetworkMode = getPreferredNetworkMode();
++        mButtonPreferredNetworkMode.setValue(Integer.toString(settingsNetworkMode));
++
++        if (getResources().getBoolean(R.bool.world_phone) == true) {
+             mCdmaOptions = new CdmaOptions(this, prefSet, mPhone);
+             mGsmUmtsOptions = new GsmUmtsOptions(this, prefSet, mPhone.getPhoneId());
+         } else {
+-            if (!isLteOnCdma) {
+-                prefSet.removePreference(mButtonPreferredNetworkMode);
+-            }
+             int phoneType = mPhone.getPhoneType();
+             if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
+                 mCdmaOptions = new CdmaOptions(this, prefSet, mPhone);
+-                if (isLteOnCdma) {
+-                    mButtonPreferredNetworkMode.setOnPreferenceChangeListener(this);
+-
+-                    int settingsNetworkMode = getPreferredNetworkMode();
+-                    mButtonPreferredNetworkMode.setValue(
+-                            Integer.toString(settingsNetworkMode));
+-                }
+-
+             } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
+                 mGsmUmtsOptions = new GsmUmtsOptions(this, prefSet, mPhone.getPhoneId());
+             } else {
+-- 
+1.9.3 (Apple Git-50)
+
+
+From a159e1cb59271f9ba3b7431ddce00d3ccfb22745 Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Tue, 23 Dec 2014 22:27:09 +0700
+Subject: [PATCH 3/4] Telephony: HACK: fix 'up' for MSimCallFeature sub option
+
+Change-Id: I1fcd9309d2849fbdd0ac1c903cbda4a8b1f213f5
+---
+ src/com/android/phone/CallFeaturesSetting.java | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/com/android/phone/CallFeaturesSetting.java b/src/com/android/phone/CallFeaturesSetting.java
+index b130ff6..13737f6 100644
+--- a/src/com/android/phone/CallFeaturesSetting.java
++++ b/src/com/android/phone/CallFeaturesSetting.java
+@@ -2226,10 +2226,13 @@ public class CallFeaturesSetting extends PreferenceActivity
+      * This is useful for implementing "HomeAsUp" capability for second-level Settings.
+      */
+     public static void goUpToTopLevelSetting(Activity activity) {
+-        Intent intent = new Intent(activity, CallFeaturesSetting.class);
+-        intent.setAction(Intent.ACTION_MAIN);
+-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+-        activity.startActivity(intent);
++        // HACK: See MSimMobileNetworkSubSettings#onOptionsItemSelected
++        if (!PhoneUtils.isMultiSimEnabled()) {
++            Intent intent = new Intent(activity, CallFeaturesSetting.class);
++            intent.setAction(Intent.ACTION_MAIN);
++            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
++            activity.startActivity(intent);
++        }
+         activity.finish();
+     }
+ }
+-- 
+1.9.3 (Apple Git-50)
+
+
+From 964a5cd21b8f0043e1a0550701483f6f00f3eb20 Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Thu, 15 Jan 2015 20:42:47 +0700
+Subject: [PATCH 4/4] Telephony: remove Video Call settings
+
+Change-Id: I2504a889ea657f6e22babdbe150813bcaf4a6ce9
+---
+ res/xml/call_feature_setting_msim.xml | 39 -----------------------------------
+ 1 file changed, 39 deletions(-)
+
+diff --git a/res/xml/call_feature_setting_msim.xml b/res/xml/call_feature_setting_msim.xml
+index 1ba6a10..5a13683 100644
+--- a/res/xml/call_feature_setting_msim.xml
++++ b/res/xml/call_feature_setting_msim.xml
+@@ -72,43 +72,4 @@
+         android:summary="@string/dtmf_tones_summary"
+         android:entries="@array/dtmf_tone_entries"
+         android:entryValues="@array/dtmf_tone_values"/>
+-
+-    <SwitchPreference
+-        android:key="button_enable_video_calling"
+-        android:title="@string/enable_video_calling_title"
+-        android:persistent="true"
+-        android:defaultValue="true" />
+-
+-    <!-- Add videocall settings menu  -->
+-    <PreferenceCategory
+-        android:key="button_videocall_settings_key"
+-        android:title="@string/videocall_settings"
+-        android:persistent="false" />
+-        <PreferenceScreen
+-            android:key="videocall_setting_fb_key"
+-            android:title="@string/vt_fallback_setting" >
+-            <intent
+-                android:action="android.intent.action.MAIN"
+-                android:targetClass="com.borqs.videocall.FallBackSetting"
+-                android:targetPackage="com.borqs.videocall" />
+-        </PreferenceScreen>
+-        <PreferenceScreen
+-            android:key="videocall_setting_fw_key"
+-            android:title="@string/vt_forward_setting"
+-            android:persistent="false" >
+-            <intent
+-                android:action="android.intent.action.MAIN"
+-                android:targetClass="com.borqs.videocall.VTCallForwardOptions"
+-                android:targetPackage="com.borqs.videocall" />
+-        </PreferenceScreen>
+-        <PreferenceScreen
+-            android:key="vt_imageplacer"
+-            android:persistent="false"
+-            android:summary="@string/vt_imagereplace_setting_sum"
+-            android:title="@string/vt_imagereplace_setting" >
+-            <intent
+-                android:action="android.intent.action.MAIN"
+-                android:targetClass="com.borqs.videocall.VTImageReplaceSetting"
+-                android:targetPackage="com.borqs.videocall" />
+-        </PreferenceScreen>
+ </PreferenceScreen>
+-- 
+1.9.3 (Apple Git-50)
+
