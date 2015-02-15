@@ -1,4 +1,4 @@
-From f963282fa4519c982966d34ffc8cc6916874a9e1 Mon Sep 17 00:00:00 2001
+From 0039421d77a0d5c7adc8e324aa171ea39c8db17b Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sun, 16 Nov 2014 08:55:55 +0700
 Subject: [PATCH] Settings: i9082: disable manual provisioning
@@ -7,34 +7,24 @@ Does not work here
 
 Change-Id: I1096b349ccf60b05aa261289b6bc7127beffaca5
 ---
- src/com/android/settings/sim/SimSettings.java | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/com/android/settings/sim/MultiSimEnablerPreference.java | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/src/com/android/settings/sim/SimSettings.java b/src/com/android/settings/sim/SimSettings.java
-index dea58f1..349557b 100644
---- a/src/com/android/settings/sim/SimSettings.java
-+++ b/src/com/android/settings/sim/SimSettings.java
-@@ -165,19 +165,13 @@ public class SimSettings extends RestrictedSettingsFragment implements Indexable
-         for (int i = 0; i < mNumSlots; ++i) {
-             final SubInfoRecord sir = findRecordBySlotId(i);
-             simCards.addPreference(new SimPreference(getActivity(), sir, i));
--            if (mNumSlots > 1) {
--                mSimEnablers.add(i, new MultiSimEnablerPreference(
--                        getActivity(), sir, mHandler, i));
--                simEnablers.addPreference(mSimEnablers.get(i));
--            } else {
--                removePreference(SIM_ENABLER_CATEGORY);
--            }
-             // Do not display deactivated subInfo in preference list
-             if ((sir != null) && (sir.mStatus == SubscriptionManager.ACTIVE)) {
-                 mNumSims++;
-                 mAvailableSubInfos.add(sir);
-             }
-         }
-+        removePreference(SIM_ENABLER_CATEGORY);
-     }
+diff --git a/src/com/android/settings/sim/MultiSimEnablerPreference.java b/src/com/android/settings/sim/MultiSimEnablerPreference.java
+index 28e60dc..62d48f0 100644
+--- a/src/com/android/settings/sim/MultiSimEnablerPreference.java
++++ b/src/com/android/settings/sim/MultiSimEnablerPreference.java
+@@ -189,7 +189,9 @@ public class MultiSimEnablerPreference extends SwitchPreference implements
+         super.onBindView(view);
  
-     private void updateAllOptions() {
+         mSwitch = (Switch) view.findViewById(com.android.internal.R.id.switchWidget);
+-        mSwitch.setClickable(true);
++        // Disable manual provisioning
++        mSwitch.setClickable(false);
++        mSwitch.setVisibility(View.INVISIBLE);
+ 
+         update();
+     }
 -- 
 1.9.3 (Apple Git-50)
 
