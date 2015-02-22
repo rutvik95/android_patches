@@ -1,175 +1,7 @@
-From 45c37f7380862cbf5d7d7268dab3f9a72b6b0ab9 Mon Sep 17 00:00:00 2001
-From: Pawit Pornkitprasan <p.pawit@gmail.com>
-Date: Tue, 23 Dec 2014 22:15:37 +0700
-Subject: [PATCH 1/3] Telephony: fix 'up' navigation for SelectSubscription
-
-The 'up' command should be passed down to the activity in the tab
-
-Change-Id: I70d5e4d5cb2d44f62cca481337f108d122726e14
----
- src/com/android/phone/msim/MSimCallFeaturesSubSetting.java | 6 +-----
- src/com/android/phone/msim/SelectSubscription.java         | 9 +++++++++
- 2 files changed, 10 insertions(+), 5 deletions(-)
-
-diff --git a/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java b/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java
-index 49d9eaa..bf6fbd9 100644
---- a/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java
-+++ b/src/com/android/phone/msim/MSimCallFeaturesSubSetting.java
-@@ -1991,11 +1991,7 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
-     public boolean onOptionsItemSelected(MenuItem item) {
-         final int itemId = item.getItemId();
-         if (itemId == android.R.id.home) {  // See ActionBar#setDisplayHomeAsUpEnabled()
--            Intent intent = new Intent();
--            intent.setClassName(UP_ACTIVITY_PACKAGE, UP_ACTIVITY_CLASS);
--            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
--            startActivity(intent);
--            finish();
-+            CallFeaturesSetting.goUpToTopLevelSetting(this);
-             return true;
-         }
-         return super.onOptionsItemSelected(item);
-diff --git a/src/com/android/phone/msim/SelectSubscription.java b/src/com/android/phone/msim/SelectSubscription.java
-index 713a033..f09bffb 100644
---- a/src/com/android/phone/msim/SelectSubscription.java
-+++ b/src/com/android/phone/msim/SelectSubscription.java
-@@ -29,6 +29,7 @@
- 
- package com.android.phone.msim;
- 
-+import android.app.Activity;
- import android.app.TabActivity;
- import android.content.Intent;
- import android.os.Bundle;
-@@ -36,6 +37,7 @@ import android.telephony.SubInfoRecord;
- import android.telephony.SubscriptionManager;
- import android.telephony.TelephonyManager;
- import android.util.Log;
-+import android.view.MenuItem;
- import android.widget.TabHost;
- import android.widget.TabHost.TabSpec;
- 
-@@ -115,6 +117,13 @@ public class SelectSubscription extends TabActivity {
-     }
- 
-     @Override
-+    public boolean onOptionsItemSelected(MenuItem item) {
-+        String tabTag = getTabHost().getCurrentTabTag();
-+        Activity activity = getLocalActivityManager().getActivity(tabTag);
-+        return activity.onOptionsItemSelected(item);
-+    }
-+
-+    @Override
-     protected void onResume() {
-         super.onResume();
-     }
--- 
-1.9.3 (Apple Git-50)
-
-
-From 37422345aa7c2ec66ccc10a35a58e3374e494cbd Mon Sep 17 00:00:00 2001
-From: Pawit Pornkitprasan <p.pawit@gmail.com>
-Date: Sun, 23 Nov 2014 15:57:20 +0700
-Subject: [PATCH 2/3] Telephony: MSim: enable preferred mode button for all
- phones
-
-HACK to allow changing network mode on multi-SIM
-
-Change-Id: I79cd6dfb1653c9c1ef14b8965c9af2bd0f5792cb
----
- res/values/strings.xml                             | 10 ++++++++
- res/xml/msim_network_sub_setting.xml               |  4 ++--
- .../phone/msim/MSimMobileNetworkSubSettings.java   | 27 +++++++---------------
- 3 files changed, 20 insertions(+), 21 deletions(-)
-
-diff --git a/res/values/strings.xml b/res/values/strings.xml
-index dbd4d60..43c3aa9 100644
---- a/res/values/strings.xml
-+++ b/res/values/strings.xml
-@@ -384,6 +384,16 @@
-     <!-- Mobile network settings, summary for preferred network mode LTE / WCDMA[CHAR LIMIT=100] -->
-     <string name="preferred_network_mode_lte_wcdma_summary">Preferred network mode: LTE / WCDMA</string>
- 
-+    <string-array name="preferred_network_mode_choices_2" translatable="false">
-+        <item>@string/preferred_network_mode_wcdma_only_choice</item>
-+        <item>@string/preferred_network_mode_gsm_only_choice</item>
-+        <item>@string/preferred_network_mode_gsm_wcdma_preferred_choice</item>
-+    </string-array>
-+    <string-array name="preferred_network_mode_values_2"  translatable="false">
-+        <item>"2"</item>
-+        <item>"1"</item>
-+        <item>"0"</item>
-+    </string-array>
- 
-     <string-array name="preferred_network_mode_choices">
-         <item>LTE / WCDMA</item>
-diff --git a/res/xml/msim_network_sub_setting.xml b/res/xml/msim_network_sub_setting.xml
-index 0f4698e..5af5725 100644
---- a/res/xml/msim_network_sub_setting.xml
-+++ b/res/xml/msim_network_sub_setting.xml
-@@ -40,8 +40,8 @@
-         android:key="preferred_network_mode_key"
-         android:title="@string/preferred_network_mode_title"
-         android:summary="@string/preferred_network_mode_summary"
--        android:entries="@array/preferred_network_mode_choices_cm"
--        android:entryValues="@array/preferred_network_mode_values"
-+        android:entries="@array/preferred_network_mode_choices_2"
-+        android:entryValues="@array/preferred_network_mode_values_2"
-         android:dialogTitle="@string/preferred_network_mode_dialogtitle" />
- 
- </PreferenceScreen>
-diff --git a/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java b/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java
-index 4bd2656..f34c30b 100644
---- a/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java
-+++ b/src/com/android/phone/msim/MSimMobileNetworkSubSettings.java
-@@ -212,32 +212,21 @@ public class MSimMobileNetworkSubSettings extends PreferenceActivity
-             mUPLMNPref.getIntent().putExtra(PhoneConstants.SUBSCRIPTION_KEY, mPhone.getPhoneId());
-         }
- 
--        boolean isLteOnCdma = mPhone.getLteOnCdmaMode() == PhoneConstants.LTE_ON_CDMA_TRUE;
--        if (getResources().getBoolean(R.bool.world_phone) == true) {
--            // set the listener for the mButtonPreferredNetworkMode list preference so we can issue
--            // change Preferred Network Mode.
--            mButtonPreferredNetworkMode.setOnPreferenceChangeListener(this);
-+        // set the listener for the mButtonPreferredNetworkMode list preference so we can issue
-+        // change Preferred Network Mode.
-+        mButtonPreferredNetworkMode.setOnPreferenceChangeListener(this);
- 
--            //Get the networkMode from Settings.System and displays it
--            int settingsNetworkMode = getPreferredNetworkMode();
--            mButtonPreferredNetworkMode.setValue(Integer.toString(settingsNetworkMode));
-+        //Get the networkMode from Settings.System and displays it
-+        int settingsNetworkMode = getPreferredNetworkMode();
-+        mButtonPreferredNetworkMode.setValue(Integer.toString(settingsNetworkMode));
-+
-+        if (getResources().getBoolean(R.bool.world_phone) == true) {
-             mCdmaOptions = new CdmaOptions(this, prefSet, mPhone);
-             mGsmUmtsOptions = new GsmUmtsOptions(this, prefSet, mPhone.getPhoneId());
-         } else {
--            if (!isLteOnCdma) {
--                prefSet.removePreference(mButtonPreferredNetworkMode);
--            }
-             int phoneType = mPhone.getPhoneType();
-             if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
-                 mCdmaOptions = new CdmaOptions(this, prefSet, mPhone);
--                if (isLteOnCdma) {
--                    mButtonPreferredNetworkMode.setOnPreferenceChangeListener(this);
--
--                    int settingsNetworkMode = getPreferredNetworkMode();
--                    mButtonPreferredNetworkMode.setValue(
--                            Integer.toString(settingsNetworkMode));
--                }
--
-             } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
-                 mGsmUmtsOptions = new GsmUmtsOptions(this, prefSet, mPhone.getPhoneId());
-             } else {
--- 
-1.9.3 (Apple Git-50)
-
-
-From d557d0956bc019ea480f73f9d48a91be55c2fc09 Mon Sep 17 00:00:00 2001
+From e9ac4c3c31c45edab49174a13ade293edb4919b9 Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Tue, 23 Dec 2014 22:27:09 +0700
-Subject: [PATCH 3/3] Telephony: HACK: fix 'up' for MSimCallFeature sub option
+Subject: [PATCH 1/2] Telephony: HACK: fix 'up' for MSimCallFeature sub option
 
 Change-Id: I1fcd9309d2849fbdd0ac1c903cbda4a8b1f213f5
 ---
@@ -198,6 +30,90 @@ index 17ffa87..5633a84 100644
          activity.finish();
      }
  }
+-- 
+1.9.3 (Apple Git-50)
+
+
+From 91f8fc340e536a618e25990969851c5699bdfbb6 Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Fri, 20 Feb 2015 20:26:52 +0700
+Subject: [PATCH 2/2] Telephony: HACK: enable WCDMA only setting
+
+Samsung stock allows WCDMA only
+
+Change-Id: If552c6439f7b6910422ec5549e54e68da798c82e
+---
+ res/values/strings.xml                           |  8 +++++---
+ src/com/android/phone/MobileNetworkSettings.java | 15 +++++++++++++--
+ 2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index dbd4d60..c57be68 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -607,12 +607,14 @@
+     </string-array>
+ 
+     <string-array name="enabled_networks_except_lte_choices" translatable="false">
+-        <item>@string/network_3G</item>
+-        <item>@string/network_2G</item>
++        <item>@string/preferred_network_mode_wcdma_only_choice</item>
++        <item>@string/preferred_network_mode_gsm_only_choice</item>
++        <item>@string/preferred_network_mode_gsm_wcdma_preferred_choice</item>
+     </string-array>
+     <string-array name="enabled_networks_except_lte_values" translatable="false">
+-        <item>"0"</item>
++        <item>"2"</item>
+         <item>"1"</item>
++        <item>"0"</item>
+     </string-array>
+ 
+     <string-array name="enabled_networks_except_gsm_lte_choices" translatable="false">
+diff --git a/src/com/android/phone/MobileNetworkSettings.java b/src/com/android/phone/MobileNetworkSettings.java
+index c7b948c..7b46591 100644
+--- a/src/com/android/phone/MobileNetworkSettings.java
++++ b/src/com/android/phone/MobileNetworkSettings.java
+@@ -484,6 +484,7 @@ public class MobileNetworkSettings extends PreferenceActivity
+                 switch (buttonNetworkMode) {
+                     case Phone.NT_MODE_WCDMA_PREF:
+                     case Phone.NT_MODE_GSM_ONLY:
++                    case Phone.NT_MODE_WCDMA_ONLY:
+                     case Phone.NT_MODE_LTE_GSM_WCDMA:
+                     case Phone.NT_MODE_LTE_CDMA_EVDO_GSM_WCDMA:
+                     case Phone.NT_MODE_CDMA:
+@@ -815,12 +816,22 @@ public class MobileNetworkSettings extends PreferenceActivity
+     private void UpdateEnabledNetworksValueAndSummary(int NetworkMode) {
+         switch (NetworkMode) {
+             case Phone.NT_MODE_WCDMA_ONLY:
++                if (!mIsGlobalCdma) {
++                    mButtonEnabledNetworks.setValue(
++                            Integer.toString(Phone.NT_MODE_WCDMA_ONLY));
++                    mButtonEnabledNetworks.setSummary(R.string.preferred_network_mode_wcdma_only_choice);
++                } else {
++                    mButtonEnabledNetworks.setValue(
++                            Integer.toString(Phone.NT_MODE_LTE_CDMA_EVDO_GSM_WCDMA));
++                    mButtonEnabledNetworks.setSummary(R.string.network_global);
++                }
++                break;
+             case Phone.NT_MODE_GSM_UMTS:
+             case Phone.NT_MODE_WCDMA_PREF:
+                 if (!mIsGlobalCdma) {
+                     mButtonEnabledNetworks.setValue(
+                             Integer.toString(Phone.NT_MODE_WCDMA_PREF));
+-                    mButtonEnabledNetworks.setSummary(R.string.network_3G);
++                    mButtonEnabledNetworks.setSummary(R.string.preferred_network_mode_gsm_wcdma_preferred_choice);
+                 } else {
+                     mButtonEnabledNetworks.setValue(
+                             Integer.toString(Phone.NT_MODE_LTE_CDMA_EVDO_GSM_WCDMA));
+@@ -831,7 +842,7 @@ public class MobileNetworkSettings extends PreferenceActivity
+                 if (!mIsGlobalCdma) {
+                     mButtonEnabledNetworks.setValue(
+                             Integer.toString(Phone.NT_MODE_GSM_ONLY));
+-                    mButtonEnabledNetworks.setSummary(R.string.network_2G);
++                    mButtonEnabledNetworks.setSummary(R.string.preferred_network_mode_gsm_only_choice);
+                 } else {
+                     mButtonEnabledNetworks.setValue(
+                             Integer.toString(Phone.NT_MODE_LTE_CDMA_EVDO_GSM_WCDMA));
 -- 
 1.9.3 (Apple Git-50)
 

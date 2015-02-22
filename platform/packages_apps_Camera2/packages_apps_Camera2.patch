@@ -1,4 +1,4 @@
-From a1f3b7a03bc96823180cfe9febc887ad517218e3 Mon Sep 17 00:00:00 2001
+From 569ee6edd4c71c8c455aa380ac4c70ee59cff794 Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Fri, 23 Jan 2015 20:34:16 +0700
 Subject: [PATCH 1/2] Camera: i9082: disable preview after stopping camera
@@ -15,10 +15,10 @@ Change-Id: I231233d28a1f7ac914408a7d02100a9424c2bf1c
  3 files changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/src/com/android/camera/CameraActivity.java b/src/com/android/camera/CameraActivity.java
-index dc7298e..d07a887 100644
+index be08322..fab95fd 100644
 --- a/src/com/android/camera/CameraActivity.java
 +++ b/src/com/android/camera/CameraActivity.java
-@@ -1578,7 +1578,7 @@ public class CameraActivity extends Activity
+@@ -1583,7 +1583,7 @@ public class CameraActivity extends Activity
          mCurrentModule.onPreviewVisibilityChanged(visibility);
      }
  
@@ -56,7 +56,7 @@ index b16a63f..74c7c0b 100644
 1.9.3 (Apple Git-50)
 
 
-From 9165ac05cf9bef0a596045c277932a5d7c02711a Mon Sep 17 00:00:00 2001
+From a0d1c28a96936805dba854defcc13889897499ab Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sat, 24 Jan 2015 21:59:20 +0700
 Subject: [PATCH 2/2] Camera: i9082: update preview state after starting
@@ -73,10 +73,10 @@ Change-Id: I036539aa602d738372f421499cf5ac8c646523ed
  3 files changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/src/com/android/camera/CameraActivity.java b/src/com/android/camera/CameraActivity.java
-index d07a887..8e06e06 100644
+index fab95fd..7c16e1d 100644
 --- a/src/com/android/camera/CameraActivity.java
 +++ b/src/com/android/camera/CameraActivity.java
-@@ -1567,7 +1567,7 @@ public class CameraActivity extends Activity
+@@ -1572,7 +1572,7 @@ public class CameraActivity extends Activity
       * Call this whenever the mode drawer or filmstrip change the visibility
       * state.
       */
