@@ -1,4 +1,4 @@
-From 945729bfb28437bc86d16c2f84bdff2c71486f29 Mon Sep 17 00:00:00 2001
+From d5267dee49cc9663b94ff270b1a889262b5d3df0 Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sun, 16 Nov 2014 08:55:55 +0700
 Subject: [PATCH] Settings: i9082: disable manual provisioning
@@ -11,10 +11,10 @@ Change-Id: I1096b349ccf60b05aa261289b6bc7127beffaca5
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/src/com/android/settings/sim/MultiSimEnablerPreference.java b/src/com/android/settings/sim/MultiSimEnablerPreference.java
-index 28e60dc..62d48f0 100644
+index 523251d..77628e2 100644
 --- a/src/com/android/settings/sim/MultiSimEnablerPreference.java
 +++ b/src/com/android/settings/sim/MultiSimEnablerPreference.java
-@@ -189,7 +189,9 @@ public class MultiSimEnablerPreference extends SwitchPreference implements
+@@ -215,7 +215,9 @@ public class MultiSimEnablerPreference extends SwitchPreference implements
          super.onBindView(view);
  
          mSwitch = (Switch) view.findViewById(com.android.internal.R.id.switchWidget);
@@ -26,5 +26,5 @@ index 28e60dc..62d48f0 100644
          update();
      }
 -- 
-1.9.3 (Apple Git-50)
+1.9.1
 

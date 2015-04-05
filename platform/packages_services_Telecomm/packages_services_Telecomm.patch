@@ -1,0 +1,368 @@
+From e611ca7dcabe0be837c401a304e97cc310d6f099 Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Sun, 15 Mar 2015 08:33:32 +0700
+Subject: [PATCH 1/2] CallsManager: fix starting call from Contacts app with
+ MSim
+
+The extras bundle may be Bundle.EMPTY, which immutable. Create our
+own copy to modify.
+
+Change-Id: If875eddc6afe9c5ca4b0d59a51902529cf115487
+---
+ src/com/android/server/telecom/CallsManager.java | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/com/android/server/telecom/CallsManager.java b/src/com/android/server/telecom/CallsManager.java
+index 0934df7..1f84d61 100644
+--- a/src/com/android/server/telecom/CallsManager.java
++++ b/src/com/android/server/telecom/CallsManager.java
+@@ -627,6 +627,8 @@ public final class CallsManager extends Call.ListenerBase {
+         if (needsAccountSelection) {
+             // This is the state where the user is expected to select an account
+             call.setState(CallState.PRE_DIAL_WAIT);
++            // Create our own instance to modify (since extras may be Bundle.EMPTY)
++            extras = new Bundle(extras);
+             extras.putParcelableList(android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS, accounts);
+         } else {
+             call.setState(CallState.CONNECTING);
+-- 
+1.9.1
+
+
+From a4709db3091ec7dfdefe3dbe99635c607e84545e Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Sun, 5 Apr 2015 10:15:00 +0700
+Subject: [PATCH 2/2] Revert "Subscription selection when dialing USSD"
+
+This is already handled by AOSP in Dialer.
+
+This reverts commit 63605bb077cf87d0678197b42527f6c0a4eb6436.
+
+Conflicts:
+	res/values/colors.xml
+	res/values/strings.xml
+	src/com/android/server/telecom/AccountSelection.java
+	src/com/android/server/telecom/CallsManager.java
+
+Change-Id: Ib5d49a6b7685c3781fad122f2d1e612993ff9e6a
+---
+ AndroidManifest.xml                                |   3 -
+ res/layout/account_list_item.xml                   |  54 --------
+ res/values/cm_strings.xml                          |   1 -
+ res/values/colors.xml                              |   1 -
+ .../android/server/telecom/AccountSelection.java   | 147 ---------------------
+ src/com/android/server/telecom/CallsManager.java   |  33 +----
+ 6 files changed, 1 insertion(+), 238 deletions(-)
+ delete mode 100644 res/layout/account_list_item.xml
+ delete mode 100644 src/com/android/server/telecom/AccountSelection.java
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index f382f30..511316b 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -228,9 +228,6 @@
+                 <action android:name="android.bluetooth.IBluetoothHeadsetPhone" />
+             </intent-filter>
+         </service>
+-        <activity android:name="AccountSelection"
+-            android:theme="@style/Theme.Telecomm.Transparent"
+-            android:excludeFromRecents="true"/>
+ 
+         <service android:name=".TelecomService"
+                 android:singleUser="true"
+diff --git a/res/layout/account_list_item.xml b/res/layout/account_list_item.xml
+deleted file mode 100644
+index 86d3cb7..0000000
+--- a/res/layout/account_list_item.xml
++++ /dev/null
+@@ -1,54 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!--
+-/*
+- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions are
+- * met:
+- *     * Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *     * Redistributions in binary form must reproduce the above
+- *       copyright notice, this list of conditions and the following
+- *       disclaimer in the documentation and/or other materials provided
+- *       with the distribution.
+- *     * Neither the name of The Linux Foundation nor the names of its
+- *       contributors may be used to endorse or promote products derived
+- *       from this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- *
+- */
+--->
+-
+-<LinearLayout
+-    xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:orientation="horizontal"
+-    android:layout_width="match_parent"
+-    android:layout_height="wrap_content"
+-    android:padding="4dp" >
+-
+-    <ImageView android:id="@+id/icon"
+-               android:layout_width="48dp"
+-               android:layout_height="48dp"
+-               android:tint="@color/dialtacts_secondary_text_color"
+-               android:scaleType="center" />
+-
+-    <TextView android:id="@+id/text"
+-              android:textAppearance="?android:attr/textAppearanceMedium"
+-              android:gravity="start|center_vertical"
+-              android:layout_marginLeft="8dp"
+-              android:layout_width="0dp"
+-              android:layout_weight="1"
+-              android:layout_height="match_parent" />
+-</LinearLayout>
+diff --git a/res/values/cm_strings.xml b/res/values/cm_strings.xml
+index 785e4ef..523175d 100644
+--- a/res/values/cm_strings.xml
++++ b/res/values/cm_strings.xml
+@@ -34,5 +34,4 @@
+ 
+     <!-- Message indicating video calls not allowed if user enabled TTY Mode -->
+     <string name="video_call_not_allowed_if_tty_enabled">Please disable TTY mode to make video calls.</string>
+-    <string name="select_account_dialog_title">Select account</string>
+ </resources>
+diff --git a/res/values/colors.xml b/res/values/colors.xml
+index f9eb279..64db085 100644
+--- a/res/values/colors.xml
++++ b/res/values/colors.xml
+@@ -16,7 +16,6 @@
+ 
+ <resources>
+     <color name="theme_color">#0288d1</color>
+-    <color name="dialtacts_secondary_text_color">#737373</color>
+ 
+     <color name="dialer_settings_actionbar_text_color">#ffffff</color>
+     <color name="dialer_settings_actionbar_background_color">@color/theme_color</color>
+diff --git a/src/com/android/server/telecom/AccountSelection.java b/src/com/android/server/telecom/AccountSelection.java
+deleted file mode 100644
+index 537f4e4..0000000
+--- a/src/com/android/server/telecom/AccountSelection.java
++++ /dev/null
+@@ -1,147 +0,0 @@
+-/*
+- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions are
+- * met:
+- *     * Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *     * Redistributions in binary form must reproduce the above
+- *       copyright notice, this list of conditions and the following
+- *       disclaimer in the documentation and/or other materials provided
+- *       with the distribution.
+- *     * Neither the name of The Linux Foundation nor the names of its
+- *       contributors may be used to endorse or promote products derived
+- *       from this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- *
+- */
+-package com.android.server.telecom;
+-
+-import android.app.Activity;
+-import android.app.AlertDialog;
+-import android.content.Context;
+-import android.content.DialogInterface;
+-import android.content.DialogInterface.OnClickListener;
+-import android.content.DialogInterface.OnCancelListener;
+-import android.content.Intent;
+-import android.net.Uri;
+-import android.telecom.PhoneAccount;
+-import android.telecom.PhoneAccountHandle;
+-import android.view.KeyEvent;
+-import android.view.View;
+-import android.view.ViewGroup;
+-import android.view.Window;
+-import android.view.WindowManager;
+-import android.view.accessibility.AccessibilityEvent;
+-import android.widget.ArrayAdapter;
+-import android.widget.ListAdapter;
+-import android.widget.ImageView;
+-import android.widget.TextView;
+-
+-
+-import java.util.List;
+-import android.os.Bundle;
+-import android.telecom.TelecomManager;
+-import android.view.LayoutInflater;
+-
+-public class AccountSelection extends Activity {
+-
+-    TelecomManager mTelecomManager;
+-    List<PhoneAccountHandle> mAccountHandles;
+-    Uri mHandle;
+-    boolean mIsSelected = false;
+-
+-    @Override
+-    protected void onCreate(Bundle icicle) {
+-        Log.d(this, "onCreate()...  this = " + this);
+-
+-        super.onCreate(icicle);
+-        Intent intent = getIntent();
+-        Bundle extras = intent.getExtras();
+-        mHandle = Uri.parse(extras.getString("Handle"));
+-        mAccountHandles = extras.getParcelableArrayList(android.telecom.
+-                Call.AVAILABLE_PHONE_ACCOUNTS);
+-        if (mAccountHandles == null ) {
+-            finish();
+-            return;
+-        }
+-        mTelecomManager = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+-        final DialogInterface.OnClickListener selectionListener =
+-                new DialogInterface.OnClickListener() {
+-            @Override
+-            public void onClick(DialogInterface dialog, int which) {
+-                mIsSelected = true;
+-                CallsManager.getInstance().phoneAccountSelectedForMMI(mHandle,
+-                        mAccountHandles.get(which));
+-                finish();
+-            }
+-        };
+-        AlertDialog.Builder builder = new AlertDialog.Builder(AccountSelection.this);
+-
+-        ListAdapter AccountListAdapter = new AccountListAdapter(
+-                builder.getContext(),
+-                R.layout.account_list_item,
+-                mAccountHandles);
+-
+-        builder.setTitle(R.string.select_account_dialog_title)
+-                .setAdapter(AccountListAdapter, selectionListener)
+-                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+-                        @Override
+-                        public void onCancel(DialogInterface dialog) {
+-                            mIsSelected = false;
+-                            finish();
+-                        }
+-                 }).create().show();
+-    }
+-
+-    private class AccountListAdapter extends ArrayAdapter<PhoneAccountHandle> {
+-        private Context mContext;
+-        private int mResId;
+-
+-        public AccountListAdapter(
+-                Context context, int resource, List<PhoneAccountHandle> accountHandles) {
+-            super(context, resource, accountHandles);
+-            mContext = context;
+-            mResId = resource;
+-        }
+-
+-        @Override
+-        public View getView(int position, View convertView, ViewGroup parent) {
+-            LayoutInflater inflater = (LayoutInflater)
+-                    mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+-
+-            View rowView = inflater.inflate(mResId, null);
+-            TextView textView = (TextView) rowView.findViewById(R.id.text);
+-            ImageView imageView = (ImageView) rowView.findViewById(R.id.icon);
+-
+-            PhoneAccountHandle accountHandle = getItem(position);
+-            PhoneAccount account = mTelecomManager.getPhoneAccount(accountHandle);
+-            textView.setText(account.getLabel());
+-            imageView.setImageDrawable(account.createIconDrawable(mContext));
+-            return rowView;
+-        }
+-
+-    }
+-
+-
+-    @Override
+-    protected void onDestroy() {
+-        Log.d(this, "onDestroy()...  this = " + mIsSelected);
+-        if(!mIsSelected) {
+-            CallsManager.getInstance().phoneAccountSelectedForMMI(mHandle, null);
+-        }
+-        super.onDestroy();
+-    }
+-}
+diff --git a/src/com/android/server/telecom/CallsManager.java b/src/com/android/server/telecom/CallsManager.java
+index 1f84d61..7de9087 100644
+--- a/src/com/android/server/telecom/CallsManager.java
++++ b/src/com/android/server/telecom/CallsManager.java
+@@ -637,16 +637,7 @@ public final class CallsManager extends Call.ListenerBase {
+         call.setExtras(extras);
+ 
+         // Do not add the call if it is a potential MMI code.
+-        if (phoneAccountHandle == null && isPotentialMMICode(handle) &&
+-                accounts.size() > 1) {
+-            mCalls.add(call);
+-            call.addListener(this);
+-            extras.putString("Handle", handle.toString());
+-            Intent intent = new Intent(mContext, AccountSelection.class);
+-            intent.putExtras(extras);
+-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+-            mContext.startActivity(intent);
+-        } else if ((isPotentialMMICode(handle) || isPotentialInCallMMICode) && !needsAccountSelection) {
++        if ((isPotentialMMICode(handle) || isPotentialInCallMMICode) && !needsAccountSelection) {
+             call.addListener(this);
+         } else if (!mCalls.contains(call)) {
+             // We check if mCalls already contains the call because we could potentially be reusing
+@@ -1018,16 +1009,6 @@ public final class CallsManager extends Call.ListenerBase {
+         }
+     }
+ 
+-    void phoneAccountSelectedForMMI(Uri handle, PhoneAccountHandle account) {
+-        Call call = getFirstCallWithHandle(handle, CallState.PRE_DIAL_WAIT);
+-        Log.d(this,"call: "+ call);
+-        if (account != null) {
+-            phoneAccountSelected(call, account, false);
+-        } else {
+-            call.disconnect();
+-        }
+-    }
+-
+     /** Called when the audio state changes. */
+     void onAudioStateChanged(AudioState oldAudioState, AudioState newAudioState) {
+         Log.v(this, "onAudioStateChanged, audioState: %s -> %s", oldAudioState, newAudioState);
+@@ -1267,18 +1248,6 @@ public final class CallsManager extends Call.ListenerBase {
+         return getFirstCallWithState(null, states);
+     }
+ 
+-    Call getFirstCallWithHandle(Uri handle, int... states) {
+-        for (int currentState : states) {
+-            for (Call call : mCalls) {
+-                if ((currentState == call.getState()) &&
+-                        call.getHandle().toString().equals(handle.toString())) {
+-                    return call;
+-                }
+-            }
+-        }
+-        return null;
+-    }
+-
+     /**
+      * Returns the first call that it finds with the given states. The states are treated as having
+      * priority order so that any call with the first state will be returned before any call with
+-- 
+1.9.1
+

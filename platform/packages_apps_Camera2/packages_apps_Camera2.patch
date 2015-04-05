@@ -1,4 +1,4 @@
-From 569ee6edd4c71c8c455aa380ac4c70ee59cff794 Mon Sep 17 00:00:00 2001
+From 7b7c319b7171c16556c7a98033b1f53f3bc1de3f Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Fri, 23 Jan 2015 20:34:16 +0700
 Subject: [PATCH 1/2] Camera: i9082: disable preview after stopping camera
@@ -11,27 +11,27 @@ Change-Id: I231233d28a1f7ac914408a7d02100a9424c2bf1c
 ---
  src/com/android/camera/CameraActivity.java | 2 +-
  src/com/android/camera/PhotoModule.java    | 1 +
- src/com/android/camera/VideoModule.java    | 2 ++
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ src/com/android/camera/VideoModule.java    | 1 +
+ 3 files changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/src/com/android/camera/CameraActivity.java b/src/com/android/camera/CameraActivity.java
-index be08322..fab95fd 100644
+index f96d634..820ce24 100644
 --- a/src/com/android/camera/CameraActivity.java
 +++ b/src/com/android/camera/CameraActivity.java
-@@ -1583,7 +1583,7 @@ public class CameraActivity extends Activity
+@@ -1643,7 +1643,7 @@ public class CameraActivity extends QuickActivity
          mCurrentModule.onPreviewVisibilityChanged(visibility);
      }
  
 -    private void updatePreviewRendering(int visibility) {
-+    /* package */ void updatePreviewRendering(int visibility) {
++    /* private */ void updatePreviewRendering(int visibility) {
          if (visibility == ModuleController.VISIBILITY_HIDDEN) {
              mCameraAppUI.pausePreviewRendering();
          } else {
 diff --git a/src/com/android/camera/PhotoModule.java b/src/com/android/camera/PhotoModule.java
-index 7544e8b..a8f165a 100644
+index b4b5ee7..52b8858 100644
 --- a/src/com/android/camera/PhotoModule.java
 +++ b/src/com/android/camera/PhotoModule.java
-@@ -1895,6 +1895,7 @@ public class PhotoModule
+@@ -1874,6 +1874,7 @@ public class PhotoModule
              mActivity.getCameraProvider().releaseCamera(mCameraDevice.getCameraId());
              mCameraDevice = null;
              setCameraState(PREVIEW_STOPPED);
@@ -40,23 +40,22 @@ index 7544e8b..a8f165a 100644
          }
      }
 diff --git a/src/com/android/camera/VideoModule.java b/src/com/android/camera/VideoModule.java
-index b16a63f..74c7c0b 100644
+index a034a1c..f203c12 100644
 --- a/src/com/android/camera/VideoModule.java
 +++ b/src/com/android/camera/VideoModule.java
-@@ -997,6 +997,8 @@ public class VideoModule extends CameraModule
+@@ -1026,6 +1026,7 @@ public class VideoModule extends CameraModule
+         }
          mCameraDevice.setZoomChangeListener(null);
-         mCameraDevice.setErrorCallback(null, null);
          mActivity.getCameraProvider().releaseCamera(mCameraDevice.getCameraId());
 +        mActivity.updatePreviewRendering(ModuleController.VISIBILITY_HIDDEN);
-+
          mCameraDevice = null;
          mPreviewing = false;
          mSnapshotInProgress = false;
 -- 
-1.9.3 (Apple Git-50)
+1.9.1
 
 
-From a0d1c28a96936805dba854defcc13889897499ab Mon Sep 17 00:00:00 2001
+From b40d76b7e8183bbfa88f68891638c686c680dee9 Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sat, 24 Jan 2015 21:59:20 +0700
 Subject: [PATCH 2/2] Camera: i9082: update preview state after starting
@@ -73,10 +72,10 @@ Change-Id: I036539aa602d738372f421499cf5ac8c646523ed
  3 files changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/src/com/android/camera/CameraActivity.java b/src/com/android/camera/CameraActivity.java
-index fab95fd..7c16e1d 100644
+index 820ce24..fcb44bd 100644
 --- a/src/com/android/camera/CameraActivity.java
 +++ b/src/com/android/camera/CameraActivity.java
-@@ -1572,7 +1572,7 @@ public class CameraActivity extends Activity
+@@ -1632,7 +1632,7 @@ public class CameraActivity extends QuickActivity
       * Call this whenever the mode drawer or filmstrip change the visibility
       * state.
       */
@@ -86,10 +85,10 @@ index fab95fd..7c16e1d 100644
              return;
          }
 diff --git a/src/com/android/camera/PhotoModule.java b/src/com/android/camera/PhotoModule.java
-index a8f165a..1f01750 100644
+index 52b8858..8e3f2e6 100644
 --- a/src/com/android/camera/PhotoModule.java
 +++ b/src/com/android/camera/PhotoModule.java
-@@ -2003,6 +2003,7 @@ public class PhotoModule
+@@ -1987,6 +1987,7 @@ public class PhotoModule
              mCameraDevice.startPreviewWithCallback(new Handler(Looper.getMainLooper()),
                      startPreviewCallback);
          }
@@ -98,10 +97,10 @@ index a8f165a..1f01750 100644
  
      @Override
 diff --git a/src/com/android/camera/VideoModule.java b/src/com/android/camera/VideoModule.java
-index 74c7c0b..11e9ded 100644
+index f203c12..129f39a 100644
 --- a/src/com/android/camera/VideoModule.java
 +++ b/src/com/android/camera/VideoModule.java
-@@ -951,6 +951,7 @@ public class VideoModule extends CameraModule
+@@ -981,6 +981,7 @@ public class VideoModule extends CameraModule
                  }
              });
              mPreviewing = true;
@@ -110,5 +109,5 @@ index 74c7c0b..11e9ded 100644
              closeCamera();
              throw new RuntimeException("startPreview failed", ex);
 -- 
-1.9.3 (Apple Git-50)
+1.9.1
 

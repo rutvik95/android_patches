@@ -1,29 +1,28 @@
-From 5f99b56d27030b2db78f7bb36891335d973e65cf Mon Sep 17 00:00:00 2001
+From f5c50ac90ebde285d72ee2fb8ce80eb5290a3b4d Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sat, 15 Nov 2014 14:50:29 +0700
-Subject: [PATCH 1/5] TelephonyManager: set properties in Broadcom-style as
+Subject: [PATCH 1/3] TelephonyManager: set properties in Broadcom-style as
  expected by RIL
 
 For i9082
 
 Change-Id: I475fdd164b3316720387fefb14a3e12fbc262b39
 ---
- .../java/android/telephony/TelephonyManager.java   | 69 +++++++---------------
- 1 file changed, 20 insertions(+), 49 deletions(-)
+ .../java/android/telephony/TelephonyManager.java   | 63 +++++++---------------
+ 1 file changed, 19 insertions(+), 44 deletions(-)
 
 diff --git a/telephony/java/android/telephony/TelephonyManager.java b/telephony/java/android/telephony/TelephonyManager.java
-index a225539..e8a7aba 100644
+index dfea650..1f7f015 100644
 --- a/telephony/java/android/telephony/TelephonyManager.java
 +++ b/telephony/java/android/telephony/TelephonyManager.java
-@@ -2801,44 +2801,16 @@ public class TelephonyManager {
+@@ -3020,49 +3020,19 @@ public class TelephonyManager {
       * @hide
       */
-     public static void setTelephonyProperty(String property, long subId, String value) {
+     public static void setTelephonyProperty(int phoneId, String property, String value) {
 -        String propVal = "";
 -        String p[] = null;
 -        String prop = SystemProperties.get(property);
-         int phoneId = SubscriptionManager.getPhoneId(subId);
- 
+-
 -        if (value == null) {
 -            value = "";
 -        }
@@ -32,8 +31,13 @@ index a225539..e8a7aba 100644
 -            p = prop.split(",");
 -        }
 -
--        if (phoneId < 0) return;
--
+         if (!SubscriptionManager.isValidPhoneId(phoneId)) {
+             Rlog.d(TAG, "setTelephonyProperty: invalid phoneId=" + phoneId +
+-                    " property=" + property + " value: " + value + " prop=" + prop);
++                    " property=" + property + " value: " + value);
+             return;
+         }
+ 
 -        for (int i = 0; i < phoneId; i++) {
 -            String str = "";
 -            if ((p != null) && (i < p.length)) {
@@ -49,78 +53,63 @@ index a225539..e8a7aba 100644
 -            }
 -        }
 -
--        // TODO: workaround for QC
--        if (property.length() > SystemProperties.PROP_NAME_MAX || propVal.length() > SystemProperties.PROP_VALUE_MAX) {
--            Rlog.d(TAG, "setTelephonyProperty length too long:" + property + ", " + propVal);
-+        if (phoneId < 0) {
-             return;
-+        } else if (phoneId > 0) {
+-        if (property.length() > SystemProperties.PROP_NAME_MAX
+-                || propVal.length() > SystemProperties.PROP_VALUE_MAX) {
+-            Rlog.d(TAG, "setTelephonyProperty: property to long phoneId=" + phoneId +
+-                    " property=" + property + " value: " + value + " propVal=" + propVal);
+-            return;
++        if (phoneId > 0) {
 +            property += "_" + phoneId;
          }
  
--        Rlog.d(TAG, "setTelephonyProperty property=" + property + " propVal=" + propVal);
+         Rlog.d(TAG, "setTelephonyProperty: success phoneId=" + phoneId +
+-                " property=" + property + " value: " + value + " propVal=" + propVal);
 -        SystemProperties.set(property, propVal);
-+        Rlog.d(TAG, "setTelephonyProperty property=" + property + " propVal=" + value);
++                " property=" + property + " value: " + value);
 +        SystemProperties.set(property, value);
      }
  
      /**
-@@ -2929,16 +2901,16 @@ public class TelephonyManager {
+@@ -3159,17 +3129,22 @@ public class TelephonyManager {
       * @hide
       */
-     public static String getTelephonyProperty(String property, long subId, String defaultVal) {
+     public static String getTelephonyProperty(int phoneId, String property, String defaultVal) {
 -        String propVal = null;
-         int phoneId = SubscriptionManager.getPhoneId(subId);
 -        String prop = SystemProperties.get(property);
 -        if ((prop != null) && (prop.length() > 0)) {
 -            String values[] = prop.split(",");
 -            if ((phoneId >= 0) && (phoneId < values.length) && (values[phoneId] != null)) {
 -                propVal = values[phoneId];
 -            }
-+
-+        if (phoneId < 0) {
++        if (!SubscriptionManager.isValidPhoneId(phoneId)) {
++            Rlog.d(TAG, "getTelephonyProperty: invalid phoneId=" + phoneId +
++                    " property=" + property);
 +            return defaultVal;
-+        } else if (phoneId > 0) {
++        }
++
++        if (phoneId > 0) {
 +            property += "_" + phoneId;
          }
--        return propVal == null ? defaultVal : propVal;
 +
 +        String propVal = SystemProperties.get(property);
++
+         Rlog.d(TAG, "getTelephonyProperty: return propVal='" + propVal + "' phoneId=" + phoneId
+-                + " property='" + property + "' defaultVal='" + defaultVal + "' prop=" + prop);
+-        return propVal == null ? defaultVal : propVal;
++                + " property='" + property + "' defaultVal='" + defaultVal);
++
 +        return propVal.isEmpty() ? defaultVal : propVal;
      }
  
      /**
-@@ -2947,15 +2919,14 @@ public class TelephonyManager {
-      * @hide
-      */
-     public static int getTelephonyProperty(String property, int slotId, int defaultVal) {
--        String propVal = null;
--        String prop = SystemProperties.get(property);
--        if ((prop != null) && (prop.length() > 0)) {
--            String values[] = prop.split(",");
--            if ((slotId >= 0) && (slotId < values.length) && (values[slotId] != null)) {
--                propVal = values[slotId];
--            }
-+        if (slotId < 0) {
-+            return defaultVal;
-+        } else if (slotId > 0) {
-+            property += "_" + slotId;
-         }
--        return propVal == null ? defaultVal : Integer.parseInt(propVal);
-+
-+        String propVal = SystemProperties.get(property);
-+        return propVal.isEmpty() ? defaultVal : Integer.parseInt(propVal);
-     }
- 
-     /** @hide */
 -- 
-1.9.3 (Apple Git-50)
+1.9.1
 
 
-From 06c9e70f4f1135363e8f34cc385f3f57600070b0 Mon Sep 17 00:00:00 2001
+From cecfcff89d52c6a27d6a9ec609fdf0ee391890cc Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sat, 15 Nov 2014 22:33:16 +0700
-Subject: [PATCH 2/5] Camera: HACK: i9082: API hacks
+Subject: [PATCH 2/3] Camera: HACK: i9082: API hacks
 
 CTS 5.0 requires the presence of an auto mode, so applications
 may try to use auto without checking.
@@ -135,7 +124,7 @@ Change-Id: I929feffa4f79c69e9d7be7d1acacb3c228280bfe
  3 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/core/java/android/hardware/camera2/legacy/LegacyMetadataMapper.java b/core/java/android/hardware/camera2/legacy/LegacyMetadataMapper.java
-index 03540e1..a4555e3 100644
+index 347db05..5acf583d 100644
 --- a/core/java/android/hardware/camera2/legacy/LegacyMetadataMapper.java
 +++ b/core/java/android/hardware/camera2/legacy/LegacyMetadataMapper.java
 @@ -1100,7 +1100,7 @@ public class LegacyMetadataMapper {
@@ -174,13 +163,13 @@ index d461bca..a34a758 100644
                  throw new CameraRuntimeException(CAMERA_DEPRECATED_HAL);
              case INVALID_OPERATION:
 -- 
-1.9.3 (Apple Git-50)
+1.9.1
 
 
-From ae9b2ceea973b942daf3f4cdea40fae45ebe80a5 Mon Sep 17 00:00:00 2001
+From 516f9356aed2712605a3b0f26837be941e9837c5 Mon Sep 17 00:00:00 2001
 From: Pawit Pornkitprasan <p.pawit@gmail.com>
 Date: Sun, 21 Dec 2014 16:23:31 +0700
-Subject: [PATCH 3/5] PowerManagerService: only turn on button light when any
+Subject: [PATCH 3/3] PowerManagerService: only turn on button light when any
  button is pressed
 
 This more closely emulates stock Samsung behavior
@@ -191,10 +180,10 @@ Change-Id: I6b15c45b713bcbc290a1026805c46109060f9990
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/services/core/java/com/android/server/power/PowerManagerService.java b/services/core/java/com/android/server/power/PowerManagerService.java
-index 7a5ccb2..575ccb5 100644
+index cd5baa8..5002726 100644
 --- a/services/core/java/com/android/server/power/PowerManagerService.java
 +++ b/services/core/java/com/android/server/power/PowerManagerService.java
-@@ -241,6 +241,7 @@ public final class PowerManagerService extends SystemService
+@@ -235,6 +235,7 @@ public final class PowerManagerService extends SystemService
      // Timestamp of the last call to user activity.
      private long mLastUserActivityTime;
      private long mLastUserActivityTimeNoChangeLights;
@@ -202,7 +191,7 @@ index 7a5ccb2..575ccb5 100644
  
      // Timestamp of last interactive power hint.
      private long mLastInteractivePowerHintTime;
-@@ -1135,6 +1136,11 @@ public final class PowerManagerService extends SystemService
+@@ -1145,6 +1146,11 @@ public final class PowerManagerService extends SystemService
                      return true;
                  }
              } else {
@@ -214,7 +203,7 @@ index 7a5ccb2..575ccb5 100644
                  if (eventTime > mLastUserActivityTime) {
                      mLastUserActivityTime = eventTime;
                      mDirty |= DIRTY_USER_ACTIVITY;
-@@ -1635,7 +1641,7 @@ public final class PowerManagerService extends SystemService
+@@ -1644,7 +1650,7 @@ public final class PowerManagerService extends SystemService
                          }
  
                          mKeyboardLight.setBrightness(mKeyboardVisible ? keyboardBrightness : 0);
@@ -224,85 +213,5 @@ index 7a5ccb2..575ccb5 100644
                          } else {
                              mButtonsLight.setBrightness(buttonBrightness);
 -- 
-1.9.3 (Apple Git-50)
-
-
-From e523fb57c8b28ed6454e00bd26891b6593ce7d0b Mon Sep 17 00:00:00 2001
-From: Pawit Pornkitprasan <p.pawit@gmail.com>
-Date: Sat, 7 Feb 2015 22:52:44 +0700
-Subject: [PATCH 5/5] Revert "Msim: Use SIM display name"
-
-IMO, not a good idea. Default is "SIM 1" and "SIM 2". There are
-also roaming cases.
-
-This reverts commit 5220513d5a76689f723b2f3e8a412ec3251b0168.
----
- .../statusbar/policy/MSimNetworkControllerImpl.java     | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
-
-diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/MSimNetworkControllerImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/MSimNetworkControllerImpl.java
-index 2cdcf55..d6b48f6 100644
---- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/MSimNetworkControllerImpl.java
-+++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/MSimNetworkControllerImpl.java
-@@ -35,7 +35,6 @@ import android.telephony.SubInfoRecord;
- import android.telephony.SubscriptionManager;
- import android.telephony.TelephonyManager;
- import android.util.Slog;
--import android.util.SparseLongArray;
- import android.view.View;
- import android.widget.TextView;
- 
-@@ -49,6 +48,7 @@ import com.android.systemui.R;
- import java.io.FileDescriptor;
- import java.io.PrintWriter;
- import java.util.ArrayList;
-+import java.util.HashMap;
- 
- public class MSimNetworkControllerImpl extends NetworkControllerImpl {
-     // debug
-@@ -96,7 +96,7 @@ public class MSimNetworkControllerImpl extends NetworkControllerImpl {
-     String[] mSpn;
-     String[] mPlmn;
-     int mPhoneCount = 0;
--    private SparseLongArray mPhoneIdSubIdMapping;
-+    private HashMap<Long, Integer> mSubIdPhoneIdMap;
-     ArrayList<MSimSignalCluster> mSimSignalClusters = new ArrayList<MSimSignalCluster>();
-     ArrayList<TextView> mSubsLabelViews = new ArrayList<TextView>();
- 
-@@ -219,7 +219,7 @@ public class MSimNetworkControllerImpl extends NetworkControllerImpl {
-     protected void registerPhoneStateListener(Context context) {
-         // telephony
-         mPhone = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
--        mPhoneIdSubIdMapping = new SparseLongArray();
-+        mSubIdPhoneIdMap = new HashMap<Long, Integer>();
-         mPhoneCount = TelephonyManager.getDefault().getPhoneCount();
-         Slog.d(TAG, "registerPhoneStateListener: " + mPhoneCount);
-         mMSimPhoneStateListener = new PhoneStateListener[mPhoneCount];
-@@ -230,8 +230,9 @@ public class MSimNetworkControllerImpl extends NetworkControllerImpl {
-                 Slog.d(TAG, "registerPhoneStateListener subId: " + subId);
-                 Slog.d(TAG, "registerPhoneStateListener slotId: " + i);
-                 if (subId > 0) {
--                    mPhoneIdSubIdMapping.put(i, subId);
--                    mMSimPhoneStateListener[i] = getPhoneStateListener(subId, i);
-+                    mSubIdPhoneIdMap.put(subId, i);
-+                    mMSimPhoneStateListener[i] = getPhoneStateListener(subId,
-+                            i);
-                     mPhone.listen(mMSimPhoneStateListener[i],
-                             PhoneStateListener.LISTEN_SERVICE_STATE
-                                     | PhoneStateListener.LISTEN_SIGNAL_STRENGTHS
-@@ -976,11 +977,7 @@ public class MSimNetworkControllerImpl extends NetworkControllerImpl {
-                 something = true;
-             }
-         }
--        if (mPhoneIdSubIdMapping.indexOfKey(phoneId) >= 0) {
--            long sub = mPhoneIdSubIdMapping.get(phoneId);
--            SubInfoRecord sir = SubscriptionManager.getSubInfoForSubscriber(sub);
--            mMSimNetworkName[phoneId] = sir.displayName;
--        } else if (something) {
-+        if (something) {
-             mMSimNetworkName[phoneId] = str.toString();
-         } else {
-             mMSimNetworkName[phoneId] = mNetworkNameDefault;
--- 
-1.9.3 (Apple Git-50)
+1.9.1
 
