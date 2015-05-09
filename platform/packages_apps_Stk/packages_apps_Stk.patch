@@ -1,0 +1,416 @@
+From 21fa071f8dc60a91a86cf4f49f81d1bc0e0a133f Mon Sep 17 00:00:00 2001
+From: Pawit Pornkitprasan <p.pawit@gmail.com>
+Date: Fri, 24 Apr 2015 13:32:38 +0700
+Subject: [PATCH] STK: use single icon as per latest AOSP 5.1
+
+This partially reverts commit b9676c91039df24dfe7bea589bfd277efa1b5b9a.
+and bring some code back in from AOSP 5.1.
+
+Change-Id: I25a76bb95e49ca8effa34332adc1f87b90effb2f
+---
+ AndroidManifest.xml                           | 29 +++++-------
+ res/values/cm_strings.xml                     |  5 ---
+ src/com/android/stk/StkAppInstaller.java      | 64 +++++++++++++++++----------
+ src/com/android/stk/StkAppService.java        | 38 +++++++++++++---
+ src/com/android/stk/StkLauncherActivity2.java | 56 -----------------------
+ src/com/android/stk/StkLauncherActivity3.java | 56 -----------------------
+ 6 files changed, 82 insertions(+), 166 deletions(-)
+ delete mode 100644 src/com/android/stk/StkLauncherActivity2.java
+ delete mode 100644 src/com/android/stk/StkLauncherActivity3.java
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 9361fe0..f0d615b 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -39,33 +39,24 @@
+         android:supportsRtl="true"
+         android:process="com.android.phone">
+ 
+-        <activity android:name="StkLauncherActivity"
++        <activity android:name="StkMain"
++            android:theme="@android:style/Theme.NoDisplay"
+             android:label="@string/app_name"
+-            android:taskAffinity="android.task.StkLauncherActivity"
+-            android:enabled="false">
++            android:enabled="false"
++            android:taskAffinity="android.task.stk.StkLauncherActivity">
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN" />
+                 <category android:name="android.intent.category.LAUNCHER" />
+             </intent-filter>
+         </activity>
+ 
+-        <activity android:name="StkLauncherActivity2"
+-            android:label="@string/app_name2"
+-            android:taskAffinity="android.task.StkLauncherActivity2"
+-            android:enabled="false" >
+-            <intent-filter>
+-                 <action android:name="android.intent.action.MAIN" />
+-                 <category android:name="android.intent.category.LAUNCHER" />
+-            </intent-filter>
+-        </activity>
+-
+-        <activity android:name="StkLauncherActivity3"
+-            android:label="@string/app_name3"
+-            android:taskAffinity="android.task.StkLauncherActivity3"
+-            android:enabled="false" >
++        <activity android:name="StkLauncherActivity"
++            android:label="@string/app_name"
++            android:taskAffinity="android.task.stk.StkLauncherActivity">
+             <intent-filter>
+-                 <action android:name="android.intent.action.MAIN" />
+-                 <category android:name="android.intent.category.LAUNCHER" />
++                 <action android:name="android.intent.action.VIEW" />
++                 <action android:name="android.intent.action.PICK" />
++                 <category android:name="android.intent.category.DEFAULT" />
+             </intent-filter>
+         </activity>
+ 
+diff --git a/res/values/cm_strings.xml b/res/values/cm_strings.xml
+index 5498c9e..562175b 100644
+--- a/res/values/cm_strings.xml
++++ b/res/values/cm_strings.xml
+@@ -16,11 +16,6 @@
+      limitations under the License.
+ -->
+ <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+-    <!-- Application label used on home screen with an icon2 -->
+-    <string name="app_name2">SIM Toolkit 2</string>
+-    <!-- Application label used on home screen with an icon3 -->
+-    <string name="app_name3">SIM Toolkit 3</string>
+-
+     <!-- Default message when no alpha tag in Play Tone -->
+     <string name="default_tone_dialog_msg">Playing Tone</string>
+ 
+diff --git a/src/com/android/stk/StkAppInstaller.java b/src/com/android/stk/StkAppInstaller.java
+index 9a4fbb7..7cc77a0 100644
+--- a/src/com/android/stk/StkAppInstaller.java
++++ b/src/com/android/stk/StkAppInstaller.java
+@@ -1,6 +1,4 @@
+ /*
+- * Copyright (c) 2011, 2013-2014 The Linux Foundation. All rights reserved.
+- * Not a Contribution.
+  * Copyright (C) 2007 The Android Open Source Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+@@ -18,53 +16,71 @@
+ 
+ package com.android.stk;
+ 
+-import com.android.internal.telephony.cat.CatLog;
+-
+ import android.content.ComponentName;
+ import android.content.Context;
+ import android.content.pm.PackageManager;
+ 
++import com.android.internal.telephony.cat.CatLog;
++
+ /**
+  * Application installer for SIM Toolkit.
+  *
+  */
+ abstract class StkAppInstaller {
+-    private StkAppInstaller() {}
++    private static final String LOG_TAG = "StkAppInstaller";
+ 
+-    static void install(Context context, int slotId) {
+-        setAppState(context, true, slotId);
++    private StkAppInstaller() {
++        CatLog.d(LOG_TAG, "init");
+     }
+ 
+-    static void unInstall(Context context, int slotId) {
+-        setAppState(context, false, slotId);
++    public static void install(Context context) {
++        setAppState(context, true);
+     }
+ 
+-    private static void setAppState(Context context, boolean install, int slotId) {
++    public static void unInstall(Context context) {
++        setAppState(context, false);
++    }
++
++    private static void setAppState(Context context, boolean install) {
++        CatLog.d(LOG_TAG, "[setAppState]+");
+         if (context == null) {
++            CatLog.d(LOG_TAG, "[setAppState]- no context, just return.");
+             return;
+         }
+         PackageManager pm = context.getPackageManager();
+         if (pm == null) {
++            CatLog.d(LOG_TAG, "[setAppState]- no package manager, just return.");
+             return;
+         }
+-        ComponentName cName;
+-        String[] launcherActivity = {
+-            "com.android.stk.StkLauncherActivity",
+-            "com.android.stk.StkLauncherActivity2",
+-            "com.android.stk.StkLauncherActivity3"
+-        };
+-        // check that STK app package is known to the PackageManager
+-        cName = new ComponentName("com.android.stk",
+-                    launcherActivity[slotId]);
+ 
++        ComponentName cName = new ComponentName(context, StkMain.class);
+         int state = install ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                 : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+ 
+-        try {
+-            pm.setComponentEnabledSetting(cName, state,
+-                    PackageManager.DONT_KILL_APP);
+-        } catch (Exception e) {
+-            CatLog.d("StkAppInstaller", "Could not change STK app state");
++        if (pm.getComponentEnabledSetting(cName) == state) {
++            CatLog.d(LOG_TAG, "Need not change app state!!");
++        } else {
++            CatLog.d(LOG_TAG, "Change app state[" + install + "]");
++            try {
++                pm.setComponentEnabledSetting(cName, state, PackageManager.DONT_KILL_APP);
++            } catch (Exception e) {
++                CatLog.d(LOG_TAG, "Could not change STK app state");
++            }
++        }
++
++        // Upgrade path: always enable StkLauncherActivity in case it was disabled by a
++        //               previous version
++        ComponentName cNameOld = new ComponentName(context, StkLauncherActivity.class);
++        int stateOld = PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
++        if (pm.getComponentEnabledSetting(cNameOld) != stateOld) {
++            CatLog.d(LOG_TAG, "Enabling StkLauncherActivity");
++            try {
++                pm.setComponentEnabledSetting(cNameOld, stateOld, PackageManager.DONT_KILL_APP);
++            } catch (Exception e) {
++                CatLog.d(LOG_TAG, "Could not enable StkLauncherActivity");
++            }
+         }
++
++        CatLog.d(LOG_TAG, "[setAppState]-");
+     }
+ }
+diff --git a/src/com/android/stk/StkAppService.java b/src/com/android/stk/StkAppService.java
+index aee0d80..d65a49f 100755
+--- a/src/com/android/stk/StkAppService.java
++++ b/src/com/android/stk/StkAppService.java
+@@ -96,6 +96,7 @@ public class StkAppService extends Service {
+     private Context mContext = null;
+     private NotificationManager mNotificationManager = null;
+     private HandlerThread[] mHandlerThread;
++    private boolean[] mStkPresent;
+     private int mSimCount = TelephonyManager.getDefault().getSimCount();
+     static StkAppService sInstance = null;
+ 
+@@ -182,6 +183,7 @@ public class StkAppService extends Service {
+         mStkService = new AppInterface[mSimCount];
+         mHandlerThread = new HandlerThread[mSimCount];
+         mServiceHandler = new ServiceHandler[mSimCount];
++        mStkPresent = new boolean[mSimCount];
+ 
+         mContext = getBaseContext();
+         InitHandlerThread();
+@@ -275,7 +277,7 @@ public class StkAppService extends Service {
+         for (int i = 0; i < mSimCount; i++) {
+             if (mStkService[i] == null) {
+                 CatLog.d(this, " Unistalling Stk App for slot: " + i);
+-                StkAppInstaller.unInstall(mContext, i);
++                unInstallStkApp(i);
+             }
+         }
+     }
+@@ -312,6 +314,30 @@ public class StkAppService extends Service {
+         }
+     }
+ 
++    private void installStkApp(int slotId) {
++        mStkPresent[slotId] = true;
++        updateStkApp();
++    }
++
++    private void unInstallStkApp(int slotId) {
++        mStkPresent[slotId] = false;
++        updateStkApp();
++    }
++
++    private void updateStkApp() {
++        boolean install = false;
++        for (int i = 0; i < mSimCount; i++) {
++            if (mStkPresent[i]) {
++                install = true;
++            }
++        }
++        if (install) {
++            StkAppInstaller.install(mContext);
++        } else {
++            StkAppInstaller.unInstall(mContext);
++        }
++    }
++
+     @Override
+     public void onDestroy() {
+         waitForLooper();
+@@ -496,7 +522,7 @@ public class StkAppService extends Service {
+             case OP_BOOT_COMPLETED:
+                 CatLog.d(this, "OP_BOOT_COMPLETED");
+                 if (mMainCmd == null) {
+-                    StkAppInstaller.unInstall(mContext, mCurrentSlotId);
++                    unInstallStkApp(mCurrentSlotId);
+                 }
+                 break;
+             case OP_DELAYED_MSG:
+@@ -535,7 +561,7 @@ public class StkAppService extends Service {
+             if (cardStatus == false) {
+                 CatLog.d(this, "CARD is ABSENT");
+                 // Uninstall STKAPP, Clear Idle text, Menu related variables.
+-                StkAppInstaller.unInstall(mContext, mCurrentSlotId);
++                unInstallStkApp(mCurrentSlotId);
+                 mNotificationManager.cancel(STK_NOTIFICATION_ID);
+                 mStkService[mCurrentSlotId] = null;
+                 cleanUp();
+@@ -552,7 +578,7 @@ public class StkAppService extends Service {
+ 
+                 if (state.refreshResult == IccRefreshResponse.REFRESH_RESULT_RESET) {
+                     // Uninstall STkmenu
+-                    StkAppInstaller.unInstall(mContext, mCurrentSlotId);
++                    unInstallStkApp(mCurrentSlotId);
+                     mCurrentMenu = null;
+                     mMainCmd = null;
+                 }
+@@ -745,10 +771,10 @@ public class StkAppService extends Service {
+                 CatLog.d(this, "Uninstall App");
+                 mCurrentMenu = null;
+                 mMainCmd = null;
+-                StkAppInstaller.unInstall(mContext, mCurrentSlotId);
++                unInstallStkApp(mCurrentSlotId);
+             } else {
+                 CatLog.d(this, "Install App");
+-                StkAppInstaller.install(mContext, mCurrentSlotId);
++                installStkApp(mCurrentSlotId);
+             }
+             mMainMenu = mCurrentMenu;
+             if (mMenuIsVisibile) {
+diff --git a/src/com/android/stk/StkLauncherActivity2.java b/src/com/android/stk/StkLauncherActivity2.java
+deleted file mode 100644
+index ed1f132..0000000
+--- a/src/com/android/stk/StkLauncherActivity2.java
++++ /dev/null
+@@ -1,56 +0,0 @@
+-/*
+- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions are
+- * met:
+- *     * Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *     * Redistributions in binary form must reproduce the above
+- *       copyright notice, this list of conditions and the following
+- *       disclaimer in the documentation and/or other materials provided
+- *       with the distribution.
+- *     * Neither the name of The Linux Foundation nor the names of its
+- *       contributors may be used to endorse or promote products derived
+- *       from this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- *
+- */
+-
+-package com.android.stk;
+-
+-import android.app.Activity;
+-import android.content.Intent;
+-import android.os.Bundle;
+-
+-/**
+- * Launcher class. Serve as the app's MAIN activity, send an intent to the
+- * StkAppService and finish.
+- *
+- */
+-public class StkLauncherActivity2 extends Activity {
+-    private static int mSlotId = 1;
+-
+-    @Override
+-    protected void onCreate(Bundle savedInstanceState) {
+-        super.onCreate(savedInstanceState);
+-
+-        Intent intent = new Intent(this, StkAppService.class);
+-        intent.putExtra(StkAppService.OPCODE, StkAppService.OP_LAUNCH_APP);
+-        intent.putExtra(StkAppService.SLOT_ID, mSlotId);
+-        startService(intent);
+-
+-        finish();
+-    }
+-}
+diff --git a/src/com/android/stk/StkLauncherActivity3.java b/src/com/android/stk/StkLauncherActivity3.java
+deleted file mode 100644
+index bb11d29..0000000
+--- a/src/com/android/stk/StkLauncherActivity3.java
++++ /dev/null
+@@ -1,56 +0,0 @@
+-/*
+- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions are
+- * met:
+- *     * Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *     * Redistributions in binary form must reproduce the above
+- *       copyright notice, this list of conditions and the following
+- *       disclaimer in the documentation and/or other materials provided
+- *       with the distribution.
+- *     * Neither the name of The Linux Foundation nor the names of its
+- *       contributors may be used to endorse or promote products derived
+- *       from this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- *
+- */
+-
+-package com.android.stk;
+-
+-import android.app.Activity;
+-import android.content.Intent;
+-import android.os.Bundle;
+-
+-/**
+- * Launcher class. Serve as the app's MAIN activity, send an intent to the
+- * StkAppService and finish.
+- *
+- */
+-public class StkLauncherActivity3 extends Activity {
+-    private static int mSlotId = 2;
+-
+-    @Override
+-    protected void onCreate(Bundle savedInstanceState) {
+-        super.onCreate(savedInstanceState);
+-
+-        Intent intent = new Intent(this, StkAppService.class);
+-        intent.putExtra(StkAppService.OPCODE, StkAppService.OP_LAUNCH_APP);
+-        intent.putExtra(StkAppService.SLOT_ID, mSlotId);
+-        startService(intent);
+-
+-        finish();
+-    }
+-}
+-- 
+2.3.5
+

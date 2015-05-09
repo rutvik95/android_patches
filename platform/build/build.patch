@@ -1,0 +1,96 @@
+From a785b87083aeea04c42274d26468b1c9f57ccf69 Mon Sep 17 00:00:00 2001
+From: Rutvik Rajagopal <rutvik_95@yahoo.co.in>
+Date: Sat, 25 Apr 2015 22:21:02 +0530
+Subject: [PATCH] Remove unneeded asserts and fix delta flash
+
+Change-Id: I69e10bd050c5031624fa13e4861d7552043b4d80
+---
+ tools/releasetools/edify_generator.py    | 13 +++++++++++++
+ tools/releasetools/ota_from_target_files | 29 +++++++++++++++++++++++------
+ 2 files changed, 36 insertions(+), 6 deletions(-)
+
+diff --git a/tools/releasetools/edify_generator.py b/tools/releasetools/edify_generator.py
+index e31f10e..3d3cdbb 100644
+--- a/tools/releasetools/edify_generator.py
++++ b/tools/releasetools/edify_generator.py
+@@ -93,6 +93,19 @@ class EdifyGenerator(object):
+            ) % (" or ".join(fp),)
+     self.script.append(cmd)
+ 
++  def AssertSomeDisplayId(self, *fp):
++    """Assert that the current system display id is one of *fp."""
++    if not fp:
++      raise ValueError("must specify some display ids")
++    cmd = (
++           ' ||\n    '.join([('file_getprop("/system/build.prop", '
++                         '"ro.build.display.id") == "%s"')
++                        % i for i in fp]) +
++           ' ||\n    abort("Package expects display id of %s; this '
++           'device has " + getprop("ro.build.display.id") + ".");'
++           ) % (" or ".join(fp),)
++    self.script.append(cmd)
++
+   def AssertSomeThumbprint(self, *fp):
+     """Assert that the current recovery build thumbprint is one of *fp."""
+     if not fp:
+diff --git a/tools/releasetools/ota_from_target_files b/tools/releasetools/ota_from_target_files
+index 551f40e..6929bd3 100755
+--- a/tools/releasetools/ota_from_target_files
++++ b/tools/releasetools/ota_from_target_files
+@@ -122,6 +122,17 @@ OPTIONS.incremental_source = None
+ OPTIONS.verify = False
+ OPTIONS.require_verbatim = set()
+ OPTIONS.prohibit_verbatim = set(("system/build.prop",))
++# May have been deleted by gapps
++# Also, otasigcheck is deleted by install script, so don't bother
++OPTIONS.skip_error = set(("system/app/Provision/Provision.apk",\
++"system/app/Provision/arm/Provision.odex",\
++"system/app/QuickSearchBox/QuickSearchBox.apk",\
++"system/app/QuickSearchBox/arm/QuickSearchBox.odex",\
++"system/lib/libwebrtc_audio_preprocessing.so",\
++"system/lib/librs_jni.so",\
++"system/lib/libjni_latinime.so",\
++"system/xbin/su",\
++"system/bin/otasigcheck.sh"))
+ OPTIONS.patch_threshold = 0.95
+ OPTIONS.wipe_user_data = False
+ OPTIONS.omit_prereq = False
+@@ -1056,6 +1067,8 @@ class FileDifference:
+   def EmitVerification(self, script):
+     so_far = 0
+     for tf, sf, size, patch_sha in self.patch_list:
++      if tf.name in OPTIONS.skip_error:
++        continue
+       if tf.name != sf.name:
+         script.SkipNextActionIfTargetExists("/"+tf.name, tf.sha1)
+       script.PatchCheck("/"+sf.name, tf.sha1, sf.sha1)
+@@ -1171,16 +1184,20 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
+     target_fp = CalculateFingerprint(oem_props, oem_dict, OPTIONS.target_info_dict)
+     source_fp = CalculateFingerprint(oem_props, oem_dict, OPTIONS.source_info_dict)
+ 
+-    if oem_props is None:
+-      script.AssertSomeFingerprint(source_fp, target_fp)
+-    else:
+-      script.AssertSomeThumbprint(
+-          GetBuildProp("ro.build.thumbprint", OPTIONS.target_info_dict),
+-          GetBuildProp("ro.build.thumbprint", OPTIONS.source_info_dict))
++    # if oem_props is None:
++    #   script.AssertSomeFingerprint(source_fp, target_fp)
++    # else:
++    #   script.AssertSomeThumbprint(
++    #       GetBuildProp("ro.build.thumbprint", OPTIONS.target_info_dict),
++    #       GetBuildProp("ro.build.thumbprint", OPTIONS.source_info_dict))
+ 
+     metadata["pre-build"] = source_fp
+     metadata["post-build"] = target_fp
+ 
++    source_di = GetBuildProp("ro.build.display.id", OPTIONS.source_info_dict)
++    target_di = GetBuildProp("ro.build.display.id", OPTIONS.target_info_dict)
++    script.AssertSomeDisplayId(source_di, target_di)
++
+   source_boot = common.GetBootableImage(
+       "/tmp/boot.img", "boot.img", OPTIONS.source_tmp, "BOOT",
+       OPTIONS.source_info_dict)
+-- 
+2.1.4
+
